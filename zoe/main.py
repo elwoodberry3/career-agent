@@ -8,7 +8,9 @@ Usage:
     --force      ignore the schedule gate
 
 Flow:
-    1. configure logging (logs/zoe.log + stdout), load settings, open State
+    1. configure logging (logs/zoe.log + stdout), load settings, open State.
+       If no source is enabled in settings.sources, fail loud (exit 1) — this check
+       lives here, not in config.load_settings, so offline tools can load settings.
     2. schedule.should_run(...) unless --force; if not, record skipped run and exit 0
     3. schedule.jitter_sleep(...) unless --no-jitter
     4. for each enabled source: fetch jobs (source failure = logged, run continues)

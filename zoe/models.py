@@ -5,11 +5,21 @@ Change these deliberately: every module and test depends on them.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import AfterValidator, BaseModel, Field, HttpUrl, field_validator
+
+
+def _to_utc(value: datetime) -> datetime:
+    """Naive datetimes are taken as UTC; aware ones are converted to UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+UtcDatetime = Annotated[datetime, AfterValidator(_to_utc)]
 
 
 class Job(BaseModel):
@@ -24,13 +34,21 @@ class Job(BaseModel):
     pay_min: float | None = None
     pay_max: float | None = None
     pay_period: Literal["hour", "year"] | None = None
-    posted_at: datetime | None = Field(default=None, description="UTC")
+    posted_at: UtcDatetime | None = Field(default=None, description="UTC")
     apply_url: HttpUrl | None = None
     canonical_url: str | None = Field(default=None, description="Used for cross-source dedupe")
     description: str = ""
     description_source: Literal["full", "snippet"] = "full"
     publisher: str | None = Field(default=None, description="e.g. ZipRecruiter, Indeed")
     search_name: str | None = Field(default=None, description="Which config search found it")
+
+    @field_validator("job_id")
+    @classmethod
+    def _job_id_shape(cls, v: str) -> str:
+        prefix, sep, native = v.partition(":")
+        if not (sep and prefix.strip() and native.strip()):
+            raise ValueError('job_id must look like "<source>:<native_id>"')
+        return v
 
 
 class DeductionCode(StrEnum):
@@ -59,6 +77,11 @@ DEDUCTION_RULES: dict[DeductionCode, tuple[int, int]] = {
     DeductionCode.SNIPPET_ONLY: (10, 10),
     DeductionCode.RED_FLAG: (10, 20),
 }
+assert set(DEDUCTION_RULES) == set(DeductionCode), "every DeductionCode needs a rule"
+
+# Verdict thresholds. Mirror the "Verdict" section of prompts/scorer_system.md.
+APPLY_NOW_MIN = 80
+REVIEW_MIN = 60
 
 
 class Deduction(BaseModel):
@@ -95,9 +118,9 @@ def compute_score(deductions: list[Deduction]) -> int:
 
 
 def verdict_for(score: int, deductions: list[Deduction]) -> Verdict:
-    if any(d.code is DeductionCode.DEALBREAKER for d in deductions) or score < 60:
+    if any(d.code is DeductionCode.DEALBREAKER for d in deductions) or score < REVIEW_MIN:
         return Verdict.SKIP
-    return Verdict.APPLY_NOW if score >= 80 else Verdict.REVIEW
+    return Verdict.APPLY_NOW if score >= APPLY_NOW_MIN else Verdict.REVIEW
 
 
 class StoredScore(BaseModel):
@@ -109,12 +132,12 @@ class StoredScore(BaseModel):
     final_verdict: Verdict
     model: str
     rubric_version: int
-    scored_at: datetime
+    scored_at: UtcDatetime
 
 
 class RunSummary(BaseModel):
-    started_at: datetime
-    finished_at: datetime | None = None
+    started_at: UtcDatetime
+    finished_at: UtcDatetime | None = None
     status: Literal["ok", "partial", "failed", "skipped_schedule"] = "ok"
     fetched: int = 0
     new: int = 0

@@ -19,7 +19,7 @@ searches:
 
 sources:
   jsearch:
-    enabled: true
+    enabled: false              # turn on at Milestone 4
     date_posted: today          # JSearch filter; verify allowed values in its docs
     max_results_per_search: 20
     country: us
