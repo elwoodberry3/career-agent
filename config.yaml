@@ -1,0 +1,73 @@
+# Zoe Lancaster configuration. No secrets here — those go in .env.
+
+timezone: America/Chicago
+
+# Searches run against each enabled source. Edit to match the roles you want.
+searches:
+  - name: ai-marketing-lead
+    query: "AI marketing director"
+    location: "Dallas, TX"
+    remote_ok: true
+  - name: creative-director
+    query: "creative director"
+    location: "Dallas, TX"
+    remote_ok: true
+  - name: marketing-automation
+    query: "marketing automation AI strategist"
+    location: "Remote"
+    remote_ok: true
+
+sources:
+  jsearch:
+    enabled: true
+    date_posted: today          # JSearch filter; verify allowed values in its docs
+    max_results_per_search: 20
+    country: us
+  gmail_alerts:
+    enabled: false              # turn on at Milestone 7
+    query: "from:(ziprecruiter.com) newer_than:2d"
+    enrich_with_jsearch: true
+
+schedule:
+  peak_hours: { start: "07:00", end: "19:00" }   # run every launchd cycle
+  quiet_hours: { start: "23:00", end: "06:00" }  # don't run at all
+  off_peak_min_interval_minutes: 180             # outside peak/quiet: at most every 3h
+  jitter_seconds_max: 1200                       # random 0–20 min delay per run
+
+scoring:
+  model: claude-haiku-5-5
+  max_tokens: 2000
+  max_jobs_per_run: 40          # cost guard
+  rubric_version: 1
+  profile_path: profile.md
+  prompt_path: prompts/scorer_system.md
+
+sheets:
+  enabled: false                # turn on at Milestone 6
+  worksheet: Pipeline
+  columns:
+    - Timestamp
+    - Job ID
+    - Source
+    - Posted Age
+    - Title
+    - Company
+    - Location
+    - Pay
+    - Score
+    - Verdict
+    - Status            # Steve fills this in: Applied / Would apply / No
+    - Direct Link
+    - Match Summary
+    - Missing Skills
+    - Rubric Version
+
+notify:
+  enabled: false                # leave off until calibration week is done
+  threshold: 80
+  channel: pushover             # pushover | telegram | macos
+  max_alerts_per_run: 5
+
+paths:
+  db: data/zoe_state.db
+  logs: logs

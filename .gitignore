@@ -221,3 +221,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---- career-agent (Zoe) — never commit personal data or secrets ----
+.env
+profile.md
+secrets/
+data/
+logs/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+samples/*.txt
+browser_profile/
+.DS_Store
+.claude/settings.local.json
